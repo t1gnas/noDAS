@@ -8,9 +8,10 @@ COPY requirements-torch.txt .
 RUN pip install -r requirements-torch.txt
 
 COPY pyproject.toml .
-RUN mkdir das && touch das/__init__.py && pip install -e .
+RUN mkdir das api && touch das/__init__.py api/__init__.py && pip install -e .
 
 COPY das das
+COPY api api
 COPY config.yaml .
 
 ENTRYPOINT ["python", "-m", "das"]

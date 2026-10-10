@@ -1,4 +1,5 @@
 import time
+from collections.abc import Iterator
 
 import numpy as np
 from scipy.ndimage import find_objects, label
@@ -42,17 +43,22 @@ def nearest_track(state: dict, seg: dict, radius: float) -> dict | None:
     return min(cands, key=lambda t: abs(t["pos_m"] - seg["pos_m"])) if cands else None
 
 
+def alert_event(kind: str, track: dict, t: float, names: list[str]) -> dict:
+    keys = ("id", "class_id", "pos_m", "c0", "c1", "confidence")
+    return {"kind": kind, "t": t, **{k: track[k] for k in keys}, "class_name": names[track["class_id"]], "duration_s": t - track["t_open"]}
+
+
 def open_track(state: dict, seg: dict, t: float, names: list[str]) -> None:
     track = {**seg, "id": len(state["alerts"]) + 1, "t_open": t, "t_last": t, "misses": 0, "matched": True, "votes": [seg["class_id"]]}
     state["open"].append(track)
     state["alerts"].append(track)
-    print(f"[{t:8.2f}s] ALERT  #{track['id']:<3d} {names[seg['class_id']]:<13s} at {seg['pos_m']:7.1f} m (ch {seg['c0']}-{seg['c1']}) conf {seg['confidence']:.2f}")
+    state["events"].append(alert_event("open", track, t, names))
 
 
 def close_track(state: dict, track: dict, t: float, names: list[str]) -> None:
     track["class_id"] = int(np.bincount(track["votes"]).argmax())
     state["open"].remove(track)
-    print(f"[{t:8.2f}s] CLEAR  #{track['id']:<3d} {names[track['class_id']]:<13s} at {track['pos_m']:7.1f} m after {track['t_last'] - track['t_open']:.1f} s")
+    state["events"].append(alert_event("clear", track, t, names))
 
 
 def update_tracks(state: dict, segs: list[dict], t: float, cfg: Config, names: list[str]) -> None:
@@ -71,11 +77,36 @@ def update_tracks(state: dict, segs: list[dict], t: float, cfg: Config, names: l
             close_track(state, tr, t, names)
 
 
-def step(state: dict, probs: np.ndarray, rec: dict, end: int, cfg: Config, names: list[str]) -> None:
+def step(state: dict, probs: np.ndarray, rec: dict, end: int, cfg: Config, names: list[str]) -> np.ndarray:
     n = cfg.alert["confirm"][1]
-    state["acts"] = (state["acts"] + [activity(argmax_with_threshold(probs, cfg.alert["threshold"]))])[-n:]
+    cls = argmax_with_threshold(probs, cfg.alert["threshold"])
+    state["acts"] = (state["acts"] + [activity(cls)])[-n:]
     state["probs"] = (state["probs"] + [probs])[-n:]
     update_tracks(state, segments(state, cfg, rec), now_s(rec, end), cfg, names)
+    return cls
+
+
+def new_state() -> dict:
+    return {"acts": [], "probs": [], "open": [], "alerts": [], "events": []}
+
+
+def steps(fn: Predictor, rec: dict, cfg: Config, names: list[str], state: dict) -> Iterator[dict]:
+    hop, buf, n_rows = cfg.alert["hop_rows"], cfg.infer["tile_rows"], rec["targets"].shape[0]
+    for end in range(hop, n_rows + 1, hop):
+        state["events"] = []
+        cls = step(state, hop_probs(fn, rec, end, buf, hop), rec, end, cfg, names)
+        yield {"end": end, "t": now_s(rec, end), "cls": cls, "events": state["events"]}
+    state["events"] = []
+    for tr in list(state["open"]):
+        close_track(state, tr, now_s(rec, n_rows), names)
+    yield {"end": n_rows, "t": now_s(rec, n_rows), "cls": None, "events": state["events"]}
+
+
+def print_event(e: dict) -> None:
+    if e["kind"] == "open":
+        print(f"[{e['t']:8.2f}s] ALERT  #{e['id']:<3d} {e['class_name']:<13s} at {e['pos_m']:7.1f} m (ch {e['c0']}-{e['c1']}) conf {e['confidence']:.2f}")
+    else:
+        print(f"[{e['t']:8.2f}s] CLEAR  #{e['id']:<3d} {e['class_name']:<13s} at {e['pos_m']:7.1f} m after {e['duration_s']:.1f} s")
 
 
 def latency_rows(state: dict, rec: dict, cfg: Config, names: list[str]) -> list[list]:
@@ -100,13 +131,11 @@ def summary(state: dict, rec: dict, cfg: Config, names: list[str]) -> None:
 def replay(path: str, model_name: str, cfg: Config, speed: float, t0: float | None, t1: float | None) -> dict:
     fn, names = load_model(model_name, cfg), class_names(cfg)
     rec = crop_time(load_recording_for_inference(path, cfg), t0, t1)
-    hop, buf = cfg.alert["hop_rows"], cfg.infer["tile_rows"]
-    state = {"acts": [], "probs": [], "open": [], "alerts": []}
-    print(f"streaming {rec['id']} with {model_name}, hop {hop} rows, speed x{speed}")
-    for end in range(hop, rec["targets"].shape[0] + 1, hop):
-        step(state, hop_probs(fn, rec, end, buf, hop), rec, end, cfg, names)
-        time.sleep(hop * row_seconds(rec["attrs"]) / speed if speed > 0 else 0)
-    for tr in list(state["open"]):
-        close_track(state, tr, now_s(rec, rec["targets"].shape[0]), names)
+    state, pause = new_state(), cfg.alert["hop_rows"] * row_seconds(rec["attrs"]) / speed if speed > 0 else 0.0
+    print(f"streaming {rec['id']} with {model_name}, hop {cfg.alert['hop_rows']} rows, speed x{speed}")
+    for s in steps(fn, rec, cfg, names, state):
+        for e in s["events"]:
+            print_event(e)
+        time.sleep(pause)
     summary(state, rec, cfg, names)
     return state

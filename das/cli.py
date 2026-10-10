@@ -2,7 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from das import audit, cnn, lgbm, loro, stream
+from das import audit, cnn, export, lgbm, loro, stream
 from das.config import Config, data_dir, load_config
 from das.evaluate import compare_rows, evaluate, print_eval
 from das.predict import MODELS, class_names, scan
@@ -41,6 +41,10 @@ def cmd_compare(args: argparse.Namespace, cfg: Config) -> None:
     print_limits()
 
 
+def cmd_export(args: argparse.Namespace, cfg: Config) -> None:
+    export.run(cfg)
+
+
 def cmd_loro(args: argparse.Namespace, cfg: Config) -> None:
     loro.run_all(args.model, cfg, args.hold)
 
@@ -70,6 +74,8 @@ def add_simple(sub: argparse._SubParsersAction) -> None:
     s.set_defaults(fn=cmd_train)
     s = sub.add_parser("compare", help="eval both models side by side with reference numbers")
     s.set_defaults(fn=cmd_compare)
+    s = sub.add_parser("export", help="write models/results.json (test metrics for both models + cnn loro) for the demo UI")
+    s.set_defaults(fn=cmd_export)
 
 
 def add_model_cmds(sub: argparse._SubParsersAction) -> None:

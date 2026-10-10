@@ -1,19 +1,48 @@
+x-gpu: &gpu
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+x-mounts: &mounts
+  - ./das:/app/das
+  - ./api:/app/api
+  - ./config.yaml:/app/config.yaml:ro
+  - ./data:/app/data:ro
+  - ./models:/app/models
+
 services:
   das:
     build: .
     image: nodas:latest
     working_dir: /app
-    volumes:
-      - ./das:/app/das
-      - ./config.yaml:/app/config.yaml:ro
-      - ./data:/app/data:ro
-      - ./models:/app/models
+    volumes: *mounts
     shm_size: 2gb
     tty: true
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    <<: *gpu
+
+  api:
+    image: nodas:latest
+    working_dir: /app
+    volumes: *mounts
+    entrypoint: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: []
+    ports:
+      - "8000:8000"
+    profiles: ["demo"]
+    <<: *gpu
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    image: nodas-web:latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    profiles: ["demo"]
