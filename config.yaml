@@ -1,0 +1,70 @@
+paths:
+  data: data/v2
+  models: models
+
+data:
+  ignore_index: 255
+  n_classes: 9
+  unknown: 255
+
+coarse_map:
+  background: background
+  walk: person
+  running: person
+  longboard: person
+  car: vehicle
+  construction: vehicle
+  fence: intrusion
+  manipulation: intrusion
+  openclose: intrusion
+
+cellfeat:
+  context_rows: 9
+  context_channels: 9
+
+lgbm:
+  n_estimators: 150
+  learning_rate: 0.08
+  num_leaves: 31
+  class_weight: balanced
+  subsample: 0.8
+  colsample: 0.8
+  max_train_cells: 400000
+  seed: 0
+
+cnn:
+  channels: [32, 48, 64, 64]
+  dilations: [1, 2, 4, 8]
+  dropout: 0.1
+  epochs: 40
+  epochs_loro: 15
+  batch: 32
+  lr: 0.002
+  weight_decay: 0.0001
+  patience: 8
+  amp: bf16
+  workers: 0
+  seed: 0
+
+augment:
+  flip_channels: 0.5
+  gain_std: 0.15
+  noise_std: 0.05
+
+infer:
+  tile_rows: 32
+  tile_channels: 128
+  stride_rows: 16
+  stride_channels: 64
+
+alert:
+  threshold: 0.6
+  min_cells: 40
+  confirm: [2, 3]
+  merge_gap_channels: 8
+  hop_rows: 4
+  track_radius_m: 20
+
+eval:
+  event_hit_fraction: 0.3
+  min_event_cells: 40

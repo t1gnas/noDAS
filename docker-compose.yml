@@ -1,0 +1,19 @@
+services:
+  das:
+    build: .
+    image: nodas:latest
+    working_dir: /app
+    volumes:
+      - ./das:/app/das
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data:ro
+      - ./models:/app/models
+    shm_size: 2gb
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
