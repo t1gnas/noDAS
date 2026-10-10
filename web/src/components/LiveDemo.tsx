@@ -24,7 +24,7 @@ function Legend({ classes }: { classes: ClassInfo[] }) {
   return (
     <div className="flex flex-wrap gap-2">
       {classes
-        .filter((c) => c.id > 0)
+        .filter((c) => c.id > 0 && !c.hidden)
         .map((c) => (
           <span key={c.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/[0.04] text-[11.5px] text-ink-2">
             <span className="size-2.5 rounded-full" style={{ background: c.color }} />
@@ -99,7 +99,7 @@ export function LiveDemo() {
         </div>
 
         {scenario && (
-          <FiberStrip start={scenario.fiber_start_m} end={scenario.fiber_end_m} viewStart={scenario.view_start_m} viewEnd={scenario.view_end_m} alerts={live.alerts} />
+          <FiberStrip start={scenario.fiber_start_m} end={scenario.fiber_end_m} viewStart={scenario.view_start_m} viewEnd={scenario.view_end_m} alerts={live.alerts} elapsed={live.elapsed} />
         )}
 
         <div className="grid lg:grid-cols-[1fr_380px] gap-5">

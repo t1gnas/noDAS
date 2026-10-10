@@ -52,3 +52,4 @@ def print_limits() -> None:
     print("- Test partitions share recordings with training; scores are within-session. `loro` is the honest check.")
     print("- Background comes from a single recording, so false-alarm numbers are indicative only.")
     print("- Features are 6 bands at 0.1 s; no phase or velocity information.")
+    print("- Classes listed in config scope.exclude_classes are never predicted and never scored; reference numbers above include them.")

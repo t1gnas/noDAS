@@ -98,8 +98,9 @@ def summarise_matches(matches: list[dict]) -> dict:
     loc = np.array([m["loc_err_m"] for m in matches], float)
     pod = float(det.mean()) if det.size else float("nan")
     acc = float(cor[det].mean()) if det.any() else float("nan")
-    med = float(np.nanmedian(loc)) if np.isfinite(loc).any() else float("nan")
-    return {"n_gt": int(det.size), "pod": pod, "class_acc": acc, "loc_err_m": med}
+    ok = np.isfinite(loc).any()
+    med, mean = (float(np.nanmedian(loc)), float(np.nanmean(loc))) if ok else (float("nan"), float("nan"))
+    return {"n_gt": int(det.size), "pod": pod, "class_acc": acc, "loc_err_m": med, "loc_err_mean_m": mean}
 
 
 def false_alarms(events: list[dict], pred_labels: np.ndarray, bg_mask: np.ndarray) -> int:

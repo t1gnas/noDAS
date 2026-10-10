@@ -16,7 +16,7 @@ type Props = { scenarios: Scenario[]; selected: string | null; onSelect: (id: st
 
 export function ScenarioPicker({ scenarios, selected, onSelect }: Props) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
       {scenarios.map((s) => {
         const [Icon, color] = ICONS[s.icon] ?? [CircleDot, "#8E8E93"];
         const active = s.id === selected;

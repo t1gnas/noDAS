@@ -1,11 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertEvent, Frame, LiveMessage, Meta, Summary, wsUrl } from "./api";
+import { Actor, AlertEvent, Frame, LiveMessage, Meta, Summary, wsUrl } from "./api";
 
 export type Status = "idle" | "connecting" | "playing" | "paused" | "ended" | "error";
 
 export type AlertItem = AlertEvent & { open: boolean; opened_t: number; upgraded: boolean };
+
+export type Trails = Record<number, number[]>;
+
+const TRAIL_POINTS = 22;
+
+function extendTrails(prev: Trails, actors: Actor[]): Trails {
+  return Object.fromEntries(actors.map((a) => [a.id, [...(prev[a.id] ?? []), a.pos_m].slice(-TRAIL_POINTS)]));
+}
 
 type Handlers = { onMeta: (m: Meta) => void; onFrame: (f: Frame, m: Meta) => void };
 
@@ -28,6 +36,8 @@ export function useLive(handlers: Handlers) {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [actors, setActors] = useState<Actor[]>([]);
+  const [trails, setTrails] = useState<Trails>({});
   const [summary, setSummary] = useState<Summary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [speed, setSpeedState] = useState(5);
@@ -50,6 +60,11 @@ export function useLive(handlers: Handlers) {
     } else if (msg.type === "frame" && metaRef.current) {
       handlersRef.current.onFrame(msg, metaRef.current);
       setElapsed(msg.end * metaRef.current.row_seconds);
+      if (msg.actors) {
+        const next = msg.actors;
+        setActors(next);
+        setTrails((prev) => extendTrails(prev, next));
+      }
       if (msg.events.length) setAlerts((prev) => msg.events.reduce(applyEvent, prev));
     } else if (msg.type === "end") {
       setSummary(msg);
@@ -64,6 +79,8 @@ export function useLive(handlers: Handlers) {
     (scenarioId: string) => {
       stop();
       setAlerts([]);
+      setActors([]);
+      setTrails({});
       setSummary(null);
       setError(null);
       setElapsed(0);
@@ -103,5 +120,5 @@ export function useLive(handlers: Handlers) {
 
   useEffect(() => stop, [stop]);
 
-  return { status, meta, elapsed, alerts, summary, error, speed, start, pause, resume, setSpeed, stop };
+  return { status, meta, elapsed, alerts, actors, trails, summary, error, speed, start, pause, resume, setSpeed, stop };
 }

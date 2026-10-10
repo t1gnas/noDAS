@@ -10,6 +10,7 @@ from das.evaluate import eval_recording
 from das.events import summarise_matches
 from das.patches import labelled_mask
 from das.predict import Predictor, class_names, cnn_predict, lgbm_predict
+from das.scope import excluded_ids, scope_all, scoped
 from das.report import print_limits, print_table, print_title
 
 REFERENCE_RECALL = {"car": 0.64, "fence": 0.73, "walk": 0.50, "longboard": 0.50}
@@ -22,17 +23,22 @@ def true_class(rec: dict) -> int:
     return int(counts.argmax())
 
 
+def has_activity(rec: dict) -> bool:
+    t = rec["targets"]
+    return bool(((t != UNKNOWN) & (t != 0)).any()) and not (t == 0).any()
+
+
 def folds(recs: dict[str, dict]) -> list[str]:
-    cls = {i: true_class(r) for i, r in recs.items() if (r["targets"] == 0).sum() == 0}
+    cls = {i: true_class(r) for i, r in recs.items() if has_activity(r)}
     multi = {k for k, n in Counter(cls.values()).items() if n > 1}
     return sorted(i for i, k in cls.items() if k in multi)
 
 
 def train_predictor(model_name: str, cfg: Config, recs: dict[str, dict], rows: list[dict]) -> Predictor:
     if model_name == "lgbm":
-        return partial(lgbm_predict, lgbm.train(cfg, recs, rows, None), cfg)
+        return scoped(partial(lgbm_predict, lgbm.train(cfg, recs, rows, None), cfg), excluded_ids(cfg))
     net = cnn.train(cfg, recs, rows, None, cfg.cnn.get("epochs_loro", 15))
-    return partial(cnn_predict, net, next(net.parameters()).device, cfg)
+    return scoped(partial(cnn_predict, net, next(net.parameters()).device, cfg), excluded_ids(cfg))
 
 
 def run_fold(model_name: str, hold_id: str, cfg: Config, recs: dict[str, dict], rows: list[dict]) -> dict:
@@ -40,7 +46,8 @@ def run_fold(model_name: str, hold_id: str, cfg: Config, recs: dict[str, dict], 
     train_rows = [r for r in rows if r["recording_id"] != hold_id]
     assert len(train_rows) < len(rows), f"held-out recording {hold_id} has no patches"
     fn = train_predictor(model_name, cfg, recs, train_rows)
-    rec, k = recs[hold_id], true_class(recs[hold_id])
+    rec = scope_all({hold_id: recs[hold_id]}, excluded_ids(cfg))[hold_id]
+    k = true_class(rec)
     res = eval_recording(fn, rec, labelled_mask(rec), cfg, names)
     pred = res["y_pred"][res["y_true"] == k]
     dist = np.bincount(pred, minlength=N_CLASSES) / max(pred.size, 1)
@@ -66,7 +73,7 @@ def print_class_means(results: list[dict]) -> None:
 
 def run_all(model_name: str, cfg: Config, only: str | None = None) -> list[dict]:
     recs, rows = load_all(data_dir(cfg)), load_patches(data_dir(cfg))
-    ids = folds(recs) if only is None else [only]
+    ids = folds(scope_all(recs, excluded_ids(cfg))) if only is None else [only]
     assert all(i in recs for i in ids), f"unknown recording {only}; choose from {folds(recs)}"
     results = []
     for i in ids:

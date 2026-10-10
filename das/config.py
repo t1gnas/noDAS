@@ -16,6 +16,7 @@ class Config:
     infer: dict
     alert: dict
     eval: dict
+    scope: dict
     base: Path
 
 

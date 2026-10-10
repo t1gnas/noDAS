@@ -6,6 +6,7 @@ from das.events import alarms_per_km_day, detect, event_metrics, false_alarms, g
 from das.metrics import COARSE_NAMES, cell_report, coarse, threat_vs_background
 from das.patches import cell_mask, split_rows
 from das.predict import Predictor, class_names, load_model
+from das.scope import excluded_ids, scope_all
 from das.report import print_cell_report, print_confusion, print_limits, print_table, print_title
 
 REFERENCE = {"macro_f1": 0.71, "accuracy": 0.81, "bg_acc": 0.97}
@@ -50,7 +51,7 @@ def aggregate(results: list[dict], cfg: Config, names: list[str]) -> dict:
 
 def evaluate(name: str, cfg: Config, split: str = "test") -> dict:
     fn, names = load_model(name, cfg), class_names(cfg)
-    recs, rows = load_all(data_dir(cfg)), split_rows(load_patches(data_dir(cfg)), split)
+    recs, rows = scope_all(load_all(data_dir(cfg)), excluded_ids(cfg)), split_rows(load_patches(data_dir(cfg)), split)
     ids = sorted({r["recording_id"] for r in rows})
     results = [eval_recording(fn, recs[i], cell_mask(recs[i], rows), cfg, names) for i in ids]
     return aggregate(results, cfg, names)
@@ -64,7 +65,7 @@ def print_tvb(s: dict) -> None:
 def print_event_summary(s: dict) -> None:
     e = s["events"]
     print_table(s["event_rows"], ["class", "gt_events", "PoD", "class_acc", "loc_err_m"])
-    print(f"all: {e['n_gt']} GT events  PoD {e['pod']:.3f}  classification accuracy {e['class_acc']:.3f}  median localisation error {e['loc_err_m']:.1f} m")
+    print(f"all: {e['n_gt']} GT events  PoD {e['pod']:.3f}  classification accuracy {e['class_acc']:.3f}  localisation error median {e['loc_err_m']:.1f} m, mean {e['loc_err_mean_m']:.1f} m")
 
 
 def print_false_alarms(s: dict) -> None:
@@ -98,6 +99,7 @@ def compare_rows(summaries: dict[str, dict], names: list[str]) -> list[list]:
 
 
 def class_rows(summaries: dict[str, dict], names: list[str]) -> list[list]:
-    f1 = [[f"F1 {n}", *[s["cells"]["f1"][i] for s in summaries.values()], REFERENCE_F1.get(n, "")] for i, n in enumerate(names)]
-    rec = [[f"recall {n}", *[s["cells"]["recall"][names.index(n)] for s in summaries.values()], v] for n, v in REFERENCE_RECALL.items()]
+    support = next(iter(summaries.values()))["cells"]["support"]
+    f1 = [[f"F1 {n}", *[s["cells"]["f1"][i] for s in summaries.values()], REFERENCE_F1.get(n, "")] for i, n in enumerate(names) if support[i] > 0]
+    rec = [[f"recall {n}", *[s["cells"]["recall"][names.index(n)] for s in summaries.values()], v] for n, v in REFERENCE_RECALL.items() if support[names.index(n)] > 0]
     return f1 + rec

@@ -92,3 +92,71 @@ body {
 .live-dot {
   animation: live-dot 1.2s ease-in-out infinite;
 }
+
+@keyframes detect-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.55;
+  }
+}
+
+.detect-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: detect-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-slow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin-slow 6s linear infinite;
+}
+
+@keyframes walk-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.walk-bob {
+  animation: walk-bob 0.55s ease-in-out infinite;
+}
+
+@keyframes drive-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+.drive-bob {
+  animation: drive-bob 0.3s linear infinite;
+}
+
+@keyframes fiber-flow {
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+
+.fiber-flow {
+  animation: fiber-flow 6s linear infinite;
+}

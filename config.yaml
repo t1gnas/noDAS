@@ -68,3 +68,6 @@ alert:
 eval:
   event_hit_fraction: 0.3
   min_event_cells: 40
+
+scope:
+  exclude_classes: [construction, longboard]

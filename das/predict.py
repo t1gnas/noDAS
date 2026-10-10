@@ -8,6 +8,7 @@ from das import cnn, lgbm
 from das.config import Config, data_dir
 from das.data import N_CLASSES, crop_rows, load_file, load_metadata, norm_stats, seconds_to_row
 from das.events import detect
+from das.scope import excluded_ids, scoped
 
 MODELS = ("lgbm", "cnn")
 Predictor = Callable[..., np.ndarray]
@@ -30,8 +31,8 @@ def lgbm_predict(model: object, cfg: Config, rec: dict, where: np.ndarray | None
 def load_model(name: str, cfg: Config) -> Predictor:
     assert name in MODELS, f"model {name!r} not in {MODELS}"
     if name == "lgbm":
-        return partial(lgbm_predict, lgbm.load(cfg), cfg)
-    return partial(cnn_predict, *cnn.load(cfg), cfg)
+        return scoped(partial(lgbm_predict, lgbm.load(cfg), cfg), excluded_ids(cfg))
+    return scoped(partial(cnn_predict, *cnn.load(cfg), cfg), excluded_ids(cfg))
 
 
 def class_names(cfg: Config) -> list[str]:

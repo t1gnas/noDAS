@@ -6,6 +6,7 @@ from collections.abc import Iterator
 import numpy as np
 from fastapi import WebSocket, WebSocketDisconnect
 
+from api.actors import actors_frame
 from api.catalog import UNVERIFIED_ID, find_scenario
 from api.view import b64, intensity, overlay, positions, truth
 from das.data import UNKNOWN, row_seconds
@@ -67,8 +68,10 @@ def frame_rows(s: dict, p: dict) -> dict:
 def build_frame(s: dict, ctx: dict, p: dict, state: dict, ver: dict) -> dict:
     upgraded = refresh(state, ver, p["rec"], s["end"]) if s["cls"] is not None else []
     events = s["events"] + [alert_event("update", tr, s["t"], ctx["names"]) for tr in upgraded]
-    body = frame_rows(s, p) if s["cls"] is not None else {"rows": 0}
-    return {"type": "frame", "t": s["t"], "end": s["end"], **body, "events": [payload(e, ver, ctx["classes"]) for e in events]}
+    live = s["cls"] is not None
+    body = frame_rows(s, p) if live else {"rows": 0}
+    actors = actors_frame(state, p["rec"]["targets"][s["end"] - 1], p["rec"], p["view"], ctx["classes"]) if live else []
+    return {"type": "frame", "t": s["t"], "end": s["end"], **body, "actors": actors, "events": [payload(e, ver, ctx["classes"]) for e in events]}
 
 
 def summary(state: dict, ver: dict, classes: list[dict]) -> dict:
@@ -100,7 +103,7 @@ async def wait_turn(control: dict, hop_s: float, started: float) -> None:
 
 
 async def pump(ws: WebSocket, ctx: dict, sc: dict, control: dict) -> dict:
-    p, state, ver = ctx["prepared"][sc["id"]], new_state(), {}
+    p, state, ver = ctx["prepared"][sc["id"]], {**new_state(), "actors": [], "next_actor": 1}, {}
     hop_s = ctx["cfg"].alert["hop_rows"] * row_seconds(p["rec"]["attrs"])
     gen: Iterator[dict] = steps(ctx["fn"], p["rec"], ctx["cfg"], ctx["names"], state)
     while not control["closed"]:

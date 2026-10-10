@@ -6,6 +6,7 @@ import { AudioWaveform } from "lucide-react";
 
 const TABS = [
   { href: "/", label: "Live" },
+  { href: "/map", label: "Map" },
   { href: "/results", label: "Results" },
 ];
 
@@ -36,10 +37,7 @@ export function Nav() {
             );
           })}
         </nav>
-        <span className="hidden sm:flex items-center gap-2 text-[12px] text-ink-2">
-          <span className="size-2 rounded-full bg-green" />
-          CNN on GPU
-        </span>
+        <span className="hidden sm:block w-[92px]" />
       </div>
     </header>
   );

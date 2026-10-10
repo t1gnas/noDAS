@@ -2,7 +2,7 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000
 
 export const wsUrl = (path: string) => API_URL.replace(/^http/, "ws") + path;
 
-export type ClassInfo = { id: number; name: string; label: string; color: string };
+export type ClassInfo = { id: number; name: string; label: string; color: string; hidden?: boolean };
 
 export type Scenario = {
   id: string;
@@ -48,6 +48,17 @@ export type AlertEvent = {
   truth_label: string | null;
 };
 
+export type Actor = {
+  id: number;
+  pos_m: number;
+  label: string;
+  color: string;
+  detected: boolean;
+  alert_id?: number;
+  alert_pos_m?: number;
+  confidence?: number;
+};
+
 export type Frame = {
   type: "frame";
   t: number;
@@ -56,6 +67,7 @@ export type Frame = {
   intensity?: string;
   overlay?: string;
   truth?: string;
+  actors?: Actor[];
   events: AlertEvent[];
 };
 
@@ -88,7 +100,7 @@ export type ModelResults = {
   cells: CellReport;
   coarse: CellReport;
   tvb: { pod: number; nar: number; fnr: number; accuracy: number };
-  events: { n_gt: number; pod: number; class_acc: number; loc_err_m: number };
+  events: { n_gt: number; pod: number; class_acc: number; loc_err_m: number; loc_err_mean_m: number };
   false_alarms: number;
 };
 

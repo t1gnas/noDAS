@@ -18,14 +18,14 @@ SCENARIOS = (
     {"id": "vehicle", "title": "Vehicle on road", "subtitle": "Cars pass over a 1.2 km buried cable", "icon": "car", "recording": "auto4_2023-06-06T145055+0100"},
     {"id": "walking", "title": "Person walking", "subtitle": "Footsteps along the cable route", "icon": "walk", "recording": "walking2_2023-04-17T122153+0100"},
     {"id": "fence", "title": "Fence intrusion", "subtitle": "Someone climbs and shakes the fence", "icon": "fence", "recording": "fence_2023-04-17T123117+0100"},
-    {"id": "construction", "title": "Construction work", "subtitle": "Heavy machinery digging near the line", "icon": "construction", "recording": "reconstruction1_2023-06-06T150714+0100"},
     {"id": "running", "title": "Person running", "subtitle": "A runner sprints past the sensor", "icon": "running", "recording": "running_2023-04-17T122413+0100"},
     {"id": "manhole", "title": "Manhole opened", "subtitle": "A cover is lifted and closed again", "icon": "manhole", "recording": "openingclosing_2023-04-17T122658+0100"},
 )
 
 
-def class_list(names: list[str]) -> list[dict]:
-    return [{"id": i, "name": n, "label": CLASS_STYLE[n][0], "color": CLASS_STYLE[n][1]} for i, n in enumerate(names)] + [UNVERIFIED]
+def class_list(names: list[str], hidden: list[str]) -> list[dict]:
+    rows = [{"id": i, "name": n, "label": CLASS_STYLE[n][0], "color": CLASS_STYLE[n][1], "hidden": n in hidden} for i, n in enumerate(names)]
+    return rows + [{**UNVERIFIED, "hidden": False}]
 
 
 def find_scenario(scenario_id: str) -> dict:
